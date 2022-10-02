@@ -106,6 +106,8 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
   int processes[c][6];
   int finishTime[c];
   int i;
+  int cpuTime = 0;
+  int blockedTime = 0;
   
   for (i = 0; i < c; i = i + 1) {
     fscanf(fp, "%d %d %d %d", &processes[i][0], &processes[i][0],
@@ -125,15 +127,20 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
     for (i = 0; i < c; i = i + 1) {
       if (processes[i][3] == cycle) {
         enqueue(queue, i);
+        processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
-        processes[pIndex][5] = ceil(processes[pIndex][1] * 0.5);
-        processes[pIndex][1] = processes[pIndex][1] - processes[pIndex][5];
+        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][1] = processes[i][1] - processes[i][5];
       }
     }
 
     // change first process's status
     if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2) {
       processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
+      cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
+    }
+    else {
+      blockedTime = blockedTime + 1;
     }
 
     char str[100] = ""; //initializing the line to represent this current cycle
@@ -179,15 +186,18 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         }
         else {
           // still has remaining running time, remains as top of the queue
+          //nothing to be done to this process
         }
       }
       // if it was blocked, decrease remaining block duration and update status to ready if needed
       if(processes[i][4] == 3) {
-        
+        processes[i][2] = processes[i][2] - 1;
+        if(processes[i][2] == 0) { // I/O finished, no longer blocked 
+          processes[i][4] = 2; //change state to ready
+        }
       }
     }
 
-    
     cycle = cycle + 1;
     int check = 1;
     //check if all processes finished 
@@ -205,4 +215,10 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
   }
 
   //print conclusion
+  fprintf(output, "\n");
+  fprintf(output, "Finishing time: %d\n", cycle);
+  fprintf(output, "CPU utilization: %d\n", (float)cpuTime / blockedTime); // to be calculated 
+  for(i = 0; i < c; i = i + 1) {
+    fprintf(output, "Turnaround process %d: %d", i, finishTime[i] - processes[i][3]);
+  }
 }
