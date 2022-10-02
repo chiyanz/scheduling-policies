@@ -1,0 +1,26 @@
+0 0:running
+1 0:running
+2 0:blocked 1:running
+3 0:blocked 1:running 2:ready
+4 0:ready 1:ready 2:running
+5 0:ready 1:ready 2:running
+6 0:running 1:ready 2:ready
+7 0:running 1:ready 2:ready
+8 1:running 2:ready
+9 1:blocked 2:running
+10 1:ready 2:running
+11 1:running 2:blocked
+12 1:running 2:blocked
+13 1:running 2:blocked
+14 2:blocked
+15 2:running
+16 2:running
+17 2:running
+18 2:running
+
+
+Finishing time: 18
+CPU utilization: 0.95
+Turnaround process 0: 8 
+Turnaround process 1: 12
+Turnaround process 2: 16 
