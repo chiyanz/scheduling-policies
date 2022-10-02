@@ -163,11 +163,27 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         //decrease remaining runtime by 1 cycle if it was just ran
         processes[i][5] = processes[i][5] - 1;
         if(processes[i][5] == 0) { //finished half or all cpu-time
-          if(processes[i][2] == 0) { //no remaining cpu-time process is finished 
+          if(processes[i][1] == 0) { //no remaining cpu-time: process is finished 
             processes[i][4] == 4;
             finishTime[i] = cycle;
           }
+          else { 
+            // process not finished, but used up half of its cpu time, change to blocked
+            processes[i][5] = processes[i][1];
+            processes[i][1] = 0; //push remaining cpu time
+            if(processes[i][2]) { // if the process requires I/O, block it
+              processes[i][4] = 3;
+              enqueue(queue, dequeue(queue));
+            }
+          }
         }
+        else {
+          // still has remaining running time, remains as top of the queue
+        }
+      }
+      // if it was blocked, decrease remaining block duration and update status to ready if needed
+      if(processes[i][4] == 3) {
+        
       }
     }
 
