@@ -74,7 +74,6 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
   int finishTime[c];
   int i;
   int cpuTime = 0;
-  int blockedTime = 0;
   
   for (i = 0; i < c; i = i + 1) {
     fscanf(fp, "%d %d %d %d\n", &processes[i][0], &processes[i][1],
@@ -105,9 +104,6 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
       cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
       processes[pIndex][5] = processes[pIndex][5] - 1;
     }
-    else {
-      blockedTime = blockedTime + 1;
-    }
 
     // print out the status before running
     fprintf(output, "%d ", cycle);
@@ -134,7 +130,6 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         if(processes[i][5] == 0) { //finished half or all cpu-time
           if(processes[i][1] == 0) { //no remaining cpu-time: process is finished 
             processes[i][4] = 4;
-            printf("Process %d is finished at cycle %d\n", i, cycle + 1);
             finishTime[i] = cycle + 1;
             dequeue(queue);
           }
@@ -192,7 +187,133 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
   }
   fclose(output);
 }
+
 //////////////////////////////////
+
+void rrq2(FILE *fp, char *filename) { // round robin implementation
+  //basically reuses ffcs implementation but adds a quantum tracker
+  int c; // number of processes to schedule
+  fscanf(fp, "%d\n", &c);
+  int processes[c][7];
+  int finishTime[c];
+  int i;
+  int cpuTime = 0;
+  for (i = 0; i < c; i = i + 1) {
+    fscanf(fp, "%d %d %d %d\n", &processes[i][0], &processes[i][1],
+           &processes[i][2], &processes[i][3]);
+    processes[i][4] = 0; // inital status undefined
+    // 0 = not loaded 1 = running, 2 = ready, 3 = blocked 4 = finihsed 
+    processes[i][5] = 0; // stores the remaining CPU time 
+    processes[i][6] = 0; // stores cycles spent continuously running
+  }
+
+  int finished = 0;
+  FILE *output = fopen(filename, "w");
+  struct Queue *queue = createQueue(100);
+  int cycle = 0;
+  while (finished != 1) {
+    for (i = 0; i < c; i = i + 1) {
+      if (processes[i][3] == cycle) {     // first push any processes that just arrived
+        enqueue(queue, i);
+        processes[i][4] = 2; // new processes are automatically ready 
+        //initialize how many cycles it'll take before it gets blocked
+        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][1] = processes[i][1] - processes[i][5];
+      }
+    }
+
+    int pIndex = front(queue);
+    // change first process's status
+    if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2 || processes[pIndex][4] == 1) {
+      processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
+      cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
+      processes[pIndex][5] = processes[pIndex][5] - 1;
+      processes[pIndex][6] = processes[pIndex][6] + 1; // increase its quantum by 1
+    }
+
+    // print out the status before running
+    fprintf(output, "%d ", cycle);
+    for(i = 0; i < c; i = i + 1) {
+      // iterate through the array of processes and print their status if they have arrived 
+      switch(processes[i][4]) {
+        case 1: 
+          fprintf(output, "%d:running ", i);
+          break;
+        case 2: 
+          fprintf(output, "%d:ready ", i);
+          break;
+        case 3: 
+          fprintf(output, "%d:blocked ", i);
+      }
+    }
+    fprintf(output, "\n");
+    fflush(output);
+    
+    // update process statuses 
+    // decrease remaining cpu time and blocking time 
+    for(i = 0; i < c; i = i + 1) {
+      if(processes[i][4] == 1) {
+        if(processes[i][5] == 0) { //finished half or all cpu-time
+          if(processes[i][1] == 0) { //no remaining cpu-time: process is finished 
+            processes[i][4] = 4;
+            finishTime[i] = cycle + 1;
+            dequeue(queue);
+          }
+          else { 
+            // process not finished, but used up half of its cpu time, change to blocked
+            processes[i][5] = processes[i][1];
+            processes[i][1] = 0;
+            processes[i][4] = 3;
+            dequeue(queue);
+          }
+        }
+        else {
+          // still has remaining running time
+          if(processes[i][6] == 2) { //was ran for 2 cycles, change status to ready and move it to the end of queue
+            processes[i][4] = 2;
+            processes[i][6] = 0; // reset quantum
+            int t = dequeue(queue);
+            enqueue(queue, t);
+          }
+        }
+      }
+      else {
+        if(processes[i][4] == 3) {
+          processes[i][2] = processes[i][2] - 1;
+          if(processes[i][2] == 0) { // I/O finished, no longer blocked 
+            processes[i][4] = 2; //change state to ready
+            enqueue(queue, i);
+          }
+        }
+      }
+    }
+    int check = 1;
+    //check if all processes finished 
+    for(i = 0; i < c; i = i + 1) {
+      if(!(processes[i][4] == 4)) {
+        //not all processes have finished yet
+        check = 0;
+        break;
+      }
+    }
+    if(check) {
+      // no processes if un-finished so everything is finished 
+      finished = 1;
+    }
+    else {
+      // not finished yet, one more cycle
+      cycle = cycle + 1;
+    }
+  }
+  //print conclusion
+  fprintf(output, "\n");
+  fprintf(output, "Finishing time: %d\n", cycle);
+  fprintf(output, "CPU utilization: %.2f\n", (float)cpuTime / (cycle + 1)); // to be calculated 
+  for(i = 0; i < c; i = i + 1) {
+    fprintf(output, "Turnaround process %d: %d\n", i, finishTime[i] - processes[i][3]);
+  }
+  fclose(output);
+}
 
 int main(int argc, char *argv[]) {
 
@@ -202,7 +323,6 @@ int main(int argc, char *argv[]) {
 
   // Check that the command line is correct
   if (argc != 3) {
-
     printf("usage:  ./scheduling alg input\n");
     printf("alg: the scheduling algorithm: 0, 1, or 2\n");
     printf("input: the processes inut file\n");
@@ -223,6 +343,9 @@ int main(int argc, char *argv[]) {
   // run the specified scheduling algorithm
   if(scheduling == 0 ) {
     fcfs(fp, filename);
+  }
+  else if(scheduling == 1) {
+    rrq2(fp, filename);
   }
 
   // close the processes file
