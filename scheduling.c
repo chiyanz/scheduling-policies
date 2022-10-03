@@ -315,6 +315,129 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
   fclose(output);
 }
 
+void srtf(FILE *fp, char *filename) { // shortest remaining time first implementation
+  int c; // number of processes to schedule
+  fscanf(fp, "%d\n", &c);
+  int processes[c][6];
+  int finishTime[c];
+  int i;
+  int cpuTime = 0;
+  
+  for (i = 0; i < c; i = i + 1) {
+    fscanf(fp, "%d %d %d %d\n", &processes[i][0], &processes[i][1],
+           &processes[i][2], &processes[i][3]);
+    processes[i][4] = 0; // inital status undefined
+    // 0 = not loaded 1 = running, 2 = ready, 3 = blocked 4 = finihsed 
+    processes[i][5] = 0; // stores the remaining CPU time 
+  }
+  int finished = 0;
+  FILE *output = fopen(filename, "w");
+  int cycle = 0;
+  while (finished != 1) {
+    for (i = 0; i < c; i = i + 1) {
+      if (processes[i][3] == cycle) {     // first push any processes that just arrived
+        processes[i][4] = 2; // new processes are automatically ready 
+        //initialize how many cycles it'll take before it gets blocked
+        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][1] = processes[i][1] - processes[i][5];
+      }
+    }
+
+    //find the one with shortest remaining run-time among the ready processes and run it
+    int shortest = INT_MAX;
+    int shortestIndex = -1;
+    for (i = 0; i < c; i = i + 1) {
+      if(processes[i][4] == 2) {
+        if((processes[i][1] + processes[i][5]) < shortest) {
+          shortest = processes[i][1] + processes[i][5];
+          shortestIndex = i;
+        }
+      }
+    }
+
+    if(shortestIndex > -1) { //if a process can be run
+      processes[shortestIndex][4] = 1; 
+    }
+
+    // print out the status before running
+    fprintf(output, "%d ", cycle);
+    for(i = 0; i < c; i = i + 1) {
+      // iterate through the array of processes and print their status if they have arrived 
+      switch(processes[i][4]) {
+        case 1: 
+          fprintf(output, "%d:running ", i);
+          break;
+        case 2: 
+          fprintf(output, "%d:ready ", i);
+          break;
+        case 3: 
+          fprintf(output, "%d:blocked ", i);
+      }
+    }
+    fprintf(output, "\n");
+    fflush(output);
+    
+    // update process statuses 
+    // decrease remaining cpu time and blocking time 
+    for(i = 0; i < c; i = i + 1) {
+      if(processes[i][4] == 1) {
+        processes[i][5] = processes[i][5] - 1;
+        cpuTime = cpuTime + 1;
+        if(processes[i][5] == 0) { //finished half or all cpu-time
+          if(processes[i][1] == 0) { //no remaining cpu-time: process is finished 
+            processes[i][4] = 4;
+            finishTime[i] = cycle + 1;
+          }
+          else { 
+            // process not finished, but used up half of its cpu time, change to blocked
+            processes[i][5] = processes[i][1];
+            processes[i][1] = 0; //push remaining cpu time
+            processes[i][4] = 3;
+          }
+        }
+        else {
+          processes[i][4] = 2; //reset status to ready since i may not be ran again
+        }
+      }
+      // if it was blocked, decrease remaining block duration and update status to ready if needed
+      else {
+        if(processes[i][4] == 3) {
+          processes[i][2] = processes[i][2] - 1;
+          if(processes[i][2] == 0) { // I/O finished, no longer blocked 
+            processes[i][4] = 2; //change state to ready
+          }
+        }
+      }
+    }
+
+    int check = 1;
+    //check if all processes finished 
+    for(i = 0; i < c; i = i + 1) {
+      if(!(processes[i][4] == 4)) {
+        //not all processes have finished yet
+        check = 0;
+        break;
+      }
+    }
+    if(check) {
+      // no processes if un-finished so everything is finished 
+      finished = 1;
+    }
+    else {
+      // not finished yet, one more cycle
+      cycle = cycle + 1;
+    }
+  }
+  //print conclusion
+  fprintf(output, "\n");
+  fprintf(output, "Finishing time: %d\n", cycle);
+  fprintf(output, "CPU utilization: %.2f\n", (float)cpuTime / (cycle + 1)); // to be calculated 
+  for(i = 0; i < c; i = i + 1) {
+    fprintf(output, "Turnaround process %d: %d\n", i, finishTime[i] - processes[i][3]);
+  }
+  fclose(output);
+}
+
 int main(int argc, char *argv[]) {
 
   int scheduling;
@@ -346,6 +469,9 @@ int main(int argc, char *argv[]) {
   }
   else if(scheduling == 1) {
     rrq2(fp, filename);
+  }
+  else if(scheduling == 2) {
+    srtf(fp, filename);
   }
 
   // close the processes file
