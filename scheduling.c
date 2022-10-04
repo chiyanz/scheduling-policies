@@ -75,7 +75,7 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
         processes[i][5] = ceil(processes[i][1] * 0.5);
-        processes[i][1] = processes[i][1] - processes[i][5];
+        processes[i][1] = processes[i][5];
       }
     }
 
@@ -136,6 +136,7 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         processes[i][2] = processes[i][2] - 1;
           if(processes[i][2] == 0) { // I/O finished, no longer blocked 
             processes[i][4] = 2; //change state to ready
+            // note this automatically gives the process with a smaller process id to become ready first
             enqueue(queue, i);
           }
         }
@@ -200,7 +201,7 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
         processes[i][5] = ceil(processes[i][1] * 0.5);
-        processes[i][1] = processes[i][1] - processes[i][5];
+        processes[i][1] = processes[i][5];
       }
     }
 
@@ -264,6 +265,7 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
           processes[i][2] = processes[i][2] - 1;
           if(processes[i][2] == 0) { // I/O finished, no longer blocked 
             processes[i][4] = 2; //change state to ready
+            // note this automatically gives the process with a smaller process id to become ready first
             enqueue(queue, i);
           }
         }
@@ -321,7 +323,7 @@ void srtf(FILE *fp, char *filename) { // shortest remaining time first implement
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
         processes[i][5] = ceil(processes[i][1] * 0.5);
-        processes[i][1] = processes[i][1] - processes[i][5];
+        processes[i][1] = processes[i][5];
       }
     }
 
