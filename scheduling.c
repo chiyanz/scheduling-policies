@@ -32,7 +32,7 @@ void enqueue(struct Queue *queue, int item) {
 
 // returns front of the queue, decreases queue length by 1
 int dequeue(struct Queue *queue) {
-  if (queue->length == 0)
+  if (isEmpty(queue))
     return INT_MIN;
   int item = queue->arr[queue->front]; //return the item at the front
   queue->front = (queue->front + 1) % queue->capacity; // update the front of the queue
@@ -41,12 +41,31 @@ int dequeue(struct Queue *queue) {
 }
 
 // returns the num stored at the front of the queue 
-int front(struct Queue* queue)
-{
-  if (queue->length == 0)
+int front(struct Queue* queue) {
+  if (isEmpty(queue))
       return INT_MIN;
   return queue->arr[queue->front];
 }
+
+int isEmpty(struct Queue* queue) {
+  return queue->length == 0;
+}
+
+// compare function used to sort the 2D array of processes by smallest to biggest process ID
+int cmp ( const void *pa, const void *pb ) {
+    const int (*a)[6] = pa;
+    const int (*b)[6] = pb;
+    if ( (*a)[0] <= (*b)[0] ) return -1;
+    else return +1;
+}
+
+int cmp2 ( const void *pa, const void *pb ) {
+    const int (*a)[7] = pa;
+    const int (*b)[7] = pb;
+    if ( (*a)[0] <= (*b)[0] ) return -1;
+    else return +1;
+}
+
 
 //////////////////////////////////
 void fcfs(FILE *fp, char *filename) { // first come first serve implementation
@@ -64,6 +83,9 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
     // 0 = not loaded 1 = running, 2 = ready, 3 = blocked 4 = finihsed 
     processes[i][5] = 0; // stores the remaining CPU time 
   }
+
+  qsort(processes, c, sizeof(processes[0]), cmp);
+
   int finished = 0;
   FILE *output = fopen(filename, "w");
   struct Queue *queue = createQueue(100);
@@ -74,18 +96,23 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
         enqueue(queue, i);
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
-        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][5] = (int)(processes[i][1] * 0.5);
+        if(processes[i][1] * 0.5 > processes[i][5])  
+          processes[i][5] = processes[i][5] + 1;
         processes[i][1] = processes[i][5];
       }
     }
 
-    int pIndex = front(queue);
-    // change first process's status
-    if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2 || processes[pIndex][4] == 1) {
-      processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
-      cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
-      processes[pIndex][5] = processes[pIndex][5] - 1;
+    if(!isEmpty(queue)) {
+      int pIndex = front(queue);
+      // change first process's status
+      if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2 || processes[pIndex][4] == 1) {
+        processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
+        cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
+        processes[pIndex][5] = processes[pIndex][5] - 1;
+      }
     }
+    
 
     // print out the status before running
     fprintf(output, "%d ", cycle);
@@ -93,13 +120,13 @@ void fcfs(FILE *fp, char *filename) { // first come first serve implementation
       // iterate through the array of processes and print their status if they have arrived 
       switch(processes[i][4]) {
         case 1: 
-          fprintf(output, "%d:running ", i);
+          fprintf(output, "%d:running ", processes[i][0]);
           break;
         case 2: 
-          fprintf(output, "%d:ready ", i);
+          fprintf(output, "%d:ready ", processes[i][0]);
           break;
         case 3: 
-          fprintf(output, "%d:blocked ", i);
+          fprintf(output, "%d:blocked ", processes[i][0]);
       }
     }
     fprintf(output, "\n");
@@ -177,7 +204,7 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
   //basically reuses ffcs implementation but adds a quantum tracker
   int c; // number of processes to schedule
   fscanf(fp, "%d\n", &c);
-  int processes[c][7];
+  int processes[c][7] ;
   int finishTime[c];
   int i;
   int cpuTime = 0;
@@ -186,13 +213,15 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
            &processes[i][2], &processes[i][3]);
     processes[i][4] = 0; // inital status undefined
     // 0 = not loaded 1 = running, 2 = ready, 3 = blocked 4 = finihsed 
-    processes[i][5] = 0; // stores the remaining CPU time 
+    processes[i][5] = 0; // stores the remaining 0.5 CPU time 
     processes[i][6] = 0; // stores cycles spent continuously running
   }
 
+  qsort(processes, c, sizeof(processes[0]), cmp2);
+
   int finished = 0;
   FILE *output = fopen(filename, "w");
-  struct Queue *queue = createQueue(100);
+  struct Queue *queue = createQueue(c);
   int cycle = 0;
   while (finished != 1) {
     for (i = 0; i < c; i = i + 1) {
@@ -200,19 +229,24 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
         enqueue(queue, i);
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
-        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][5] = (int)(processes[i][1] * 0.5); 
+        if(processes[i][1] * 0.5 > processes[i][5])  
+          processes[i][5] = processes[i][5] + 1;
         processes[i][1] = processes[i][5];
       }
     }
 
-    int pIndex = front(queue);
-    // change first process's status
-    if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2 || processes[pIndex][4] == 1) {
-      processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
-      cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
-      processes[pIndex][5] = processes[pIndex][5] - 1;
-      processes[pIndex][6] = processes[pIndex][6] + 1; // increase its quantum by 1
-    }
+    if(!isEmpty(queue)) {
+      int pIndex = front(queue);
+      // change first process's status
+      if (processes[pIndex][4] == 0 || processes[pIndex][4] == 2 || processes[pIndex][4] == 1) {
+        processes[pIndex][4] = 1; //if first process wasn't running but is ready to run, run it
+        cpuTime = cpuTime + 1; // a process is running this cycle so increase CPU utilization
+        processes[pIndex][5] = processes[pIndex][5] - 1;
+        processes[pIndex][6] = processes[pIndex][6] + 1; // increase its quantum by 1
+      }
+    }    
+    
 
     // print out the status before running
     fprintf(output, "%d ", cycle);
@@ -220,13 +254,13 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
       // iterate through the array of processes and print their status if they have arrived 
       switch(processes[i][4]) {
         case 1: 
-          fprintf(output, "%d:running ", i);
+          fprintf(output, "%d:running ", processes[i][0]);
           break;
         case 2: 
-          fprintf(output, "%d:ready ", i);
+          fprintf(output, "%d:ready ", processes[i][0]);
           break;
         case 3: 
-          fprintf(output, "%d:blocked ", i);
+          fprintf(output, "%d:blocked ", processes[i][0]);
       }
     }
     fprintf(output, "\n");
@@ -247,6 +281,7 @@ void rrq2(FILE *fp, char *filename) { // round robin implementation
             processes[i][5] = processes[i][1];
             processes[i][1] = 0;
             processes[i][4] = 3;
+            processes[i][6] = 0; // reset quantum
             dequeue(queue);
           }
         }
@@ -314,6 +349,9 @@ void srtf(FILE *fp, char *filename) { // shortest remaining time first implement
     // 0 = not loaded 1 = running, 2 = ready, 3 = blocked 4 = finihsed 
     processes[i][5] = 0; // stores the remaining CPU time 
   }
+
+  qsort(processes, c, sizeof(processes[0]), cmp);
+
   int finished = 0;
   FILE *output = fopen(filename, "w");
   int cycle = 0;
@@ -322,7 +360,9 @@ void srtf(FILE *fp, char *filename) { // shortest remaining time first implement
       if (processes[i][3] == cycle) {     // first push any processes that just arrived
         processes[i][4] = 2; // new processes are automatically ready 
         //initialize how many cycles it'll take before it gets blocked
-        processes[i][5] = ceil(processes[i][1] * 0.5);
+        processes[i][5] = (int)(processes[i][1] * 0.5);
+        if(processes[i][1] * 0.5 > processes[i][5])  
+          processes[i][5] = processes[i][5] + 1;
         processes[i][1] = processes[i][5];
       }
     }
@@ -349,13 +389,13 @@ void srtf(FILE *fp, char *filename) { // shortest remaining time first implement
       // iterate through the array of processes and print their status if they have arrived 
       switch(processes[i][4]) {
         case 1: 
-          fprintf(output, "%d:running ", i);
+          fprintf(output, "%d:running ", processes[i][0]);
           break;
         case 2: 
-          fprintf(output, "%d:ready ", i);
+          fprintf(output, "%d:ready ", processes[i][0]);
           break;
         case 3: 
-          fprintf(output, "%d:blocked ", i);
+          fprintf(output, "%d:blocked ", processes[i][0]);
       }
     }
     fprintf(output, "\n");
